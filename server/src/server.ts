@@ -16,7 +16,7 @@ initSocket(server);
 
 // Cors Configuration
 app.use(cors({
-  origin: '*',
+  origin: process.env.FRONTEND_URL || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 
@@ -28,7 +28,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', apiRouter);
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'UP', timestamp: new Date() });
 });
 
@@ -48,7 +48,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`===============================================`);
   console.log(`🚀 SIGNALFLARE BACKEND RUNNING ON PORT ${PORT}`);
   console.log(`🔌 WebSockets active and listening for clients`);
