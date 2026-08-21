@@ -1,0 +1,269 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  password          String
+  name              String
+  phone             String
+  role              String             // 'VICTIM', 'VOLUNTEER', 'RESCUE', 'ADMIN'
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  sosRequests       SOSRequest[]       @relation("VictimSOS")
+  resourceRequests  ResourceRequest[]  @relation("VictimResources")
+  messagesSent      Message[]          @relation("MessageSender")
+  messagesReceived  Message[]          @relation("MessageReceiver")
+  notifications     Notification[]
+  locations         Location[]
+  auditLogs         AuditLog[]
+  volunteer         Volunteer?
+  rescueTeamMember  RescueTeamMember[]
+  emergencyRequests EmergencyRequest[] @relation("VictimEmergency")
+}
+
+model Volunteer {
+  id               String            @id @default(uuid())
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status           String            // 'AVAILABLE', 'BUSY', 'OFFLINE'
+  skills           String            // comma-separated list or description
+  currentLat       Float?
+  currentLng       Float?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  sosRequests      SOSRequest[]      @relation("VolunteerSOS")
+  resourceRequests ResourceRequest[] @relation("VolunteerResources")
+}
+
+model RescueTeam {
+  id          String             @id @default(uuid())
+  name        String
+  status      String             // 'ACTIVE', 'STANDBY', 'INACTIVE'
+  vehicleType String
+  leaderId    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  members     RescueTeamMember[]
+  sosRequests SOSRequest[]       @relation("RescueSOS")
+}
+
+model RescueTeamMember {
+  id        String     @id @default(uuid())
+  teamId    String
+  userId    String
+  team      RescueTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model EmergencyRequest {
+  id          String   @id @default(uuid())
+  victimId    String
+  victim      User     @relation("VictimEmergency", fields: [victimId], references: [id])
+  type        String   // 'FIRE', 'FLOOD', 'MEDICAL', 'ACCIDENT', 'OTHER'
+  severity    String   // 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  status      String   // 'PENDING', 'APPROVED', 'RESOLVED', 'REJECTED'
+  locationLat Float
+  locationLng Float
+  address     String?
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SOSRequest {
+  id              String           @id @default(uuid())
+  victimId        String
+  victim          User             @relation("VictimSOS", fields: [victimId], references: [id], onDelete: Cascade)
+  responderTeamId String?
+  responderTeam   RescueTeam?      @relation("RescueSOS", fields: [responderTeamId], references: [id])
+  volunteerId     String?
+  volunteer       Volunteer?       @relation("VolunteerSOS", fields: [volunteerId], references: [id])
+  emergencyType   String           // 'FLOOD', 'MEDICAL', 'FIRE', 'COLLAPSE', 'OTHER'
+  severity        String           // 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  status          String           // 'CREATED', 'RECEIVED', 'ASSIGNED', 'RESPONDER_ON_WAY', 'RESCUE_IN_PROGRESS', 'RESOLVED', 'CANCELLED'
+  peopleCount     Int              @default(1)
+  locationLat     Float
+  locationLng     Float
+  address         String?
+  message         String?
+  contactPhone    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  photos          EmergencyPhoto[]
+}
+
+model ResourceRequest {
+  id           String     @id @default(uuid())
+  victimId     String
+  victim       User       @relation("VictimResources", fields: [victimId], references: [id], onDelete: Cascade)
+  volunteerId  String?
+  volunteer    Volunteer? @relation("VolunteerResources", fields: [volunteerId], references: [id])
+  resourceName String
+  quantity     Int
+  status       String     // 'PENDING', 'APPROVED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'
+  locationLat  Float?
+  locationLng  Float?
+  address      String?
+  contactPhone String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Resource {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  quantity    Int
+  unit        String   // 'kg', 'liters', 'packets', 'units'
+  locationLat Float?
+  locationLng Float?
+  shelterId   String?
+  shelter     Shelter? @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Shelter {
+  id           String     @id @default(uuid())
+  name         String
+  capacity     Int
+  occupied     Int        @default(0)
+  locationLat  Float
+  locationLng  Float
+  address      String
+  contactPhone String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  resources    Resource[]
+}
+
+model Location {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lat        Float
+  lng        Float
+  recordedAt DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // 'SOS_UPDATE', 'RESOURCE_DELIVERED', 'GENERAL', 'ALERT'
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model EmergencyPhoto {
+  id           String     @id @default(uuid())
+  sosRequestId String
+  sosRequest   SOSRequest @relation(fields: [sosRequestId], references: [id], onDelete: Cascade)
+  photoUrl     String     // base64 data URL
+  createdAt    DateTime   @default(now())
+}
+
+model SyncQueue {
+  id        String   @id @default(uuid())
+  action    String   // 'CREATE_SOS', 'CREATE_RESOURCE_REQ', 'SEND_MESSAGE'
+  payload   String   // JSON serialized payload
+  status    String   // 'PENDING', 'COMPLETED', 'FAILED'
+  error     String?
+  createdAt DateTime @default(now())
+}
+
+model EmergencyEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  active      Boolean  @default(true)
+  severity    String   // 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  locationLat Float
+  locationLng Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  details   String
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model MeshDevice {
+  id           String   @id @default(uuid())
+  deviceId     String   @unique
+  name         String
+  role         String   // 'VICTIM', 'VOLUNTEER', 'RESCUE', 'ADMIN'
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model MeshMessage {
+  id              String   @id @default(uuid())
+  messageId       String   @unique
+  senderDeviceId  String
+  messageType     String   // 'SOS', 'MEDICAL_EMERGENCY', 'RESOURCE_REQUEST', etc.
+  status          String   // 'SAVED_LOCALLY', 'RELAYING', 'DELIVERED_TO_PEER', 'DELIVERED_TO_RESCUE', 'SERVER_SYNCED'
+  hopCount        Int      @default(0)
+  ttl             Int      @default(24) // in hours
+  latitude        Float
+  longitude       Float
+  priority        String   // 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
+  payload         String   // JSON stringified payload
+  createdAt       DateTime @default(now())
+  lastForwardedAt DateTime?
+  deliveredAt     DateTime?
+  serverSyncedAt  DateTime?
+}
+
+model MeshPeer {
+  id           String   @id @default(uuid())
+  deviceId     String
+  peerDeviceId String
+  status       String   // 'CONNECTED', 'DISCONNECTED'
+  lastSeenAt   DateTime @default(now())
+  
+  @@unique([deviceId, peerDeviceId])
+}
+
+model MeshRoute {
+  id           String   @id @default(uuid())
+  messageId    String
+  hopIndex     Int
+  fromDeviceId String
+  toDeviceId   String
+  timestamp    DateTime @default(now())
+}
+

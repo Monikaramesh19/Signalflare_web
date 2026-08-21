@@ -1,0 +1,20 @@
+{
+  "name": "signalflare-monorepo",
+  "version": "1.0.0",
+  "description": "SignalFlare: Emergency web application with offline-first capabilities",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "dev:client": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "dev": "npx concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "build": "npm run build:server && npm run build:client",
+    "prisma:generate": "npm --prefix server run prisma:generate",
+    "prisma:migrate": "npm --prefix server run prisma:migrate",
+    "prisma:seed": "npm --prefix server run prisma:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
