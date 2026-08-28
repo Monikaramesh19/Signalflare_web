@@ -67,6 +67,7 @@ export const Login: React.FC = () => {
             <div className="relative">
               <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
               <input
+                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -82,6 +83,7 @@ export const Login: React.FC = () => {
             <div className="relative">
               <Key className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
               <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -93,6 +95,7 @@ export const Login: React.FC = () => {
           </div>
 
           <button
+            id="login-button"
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-red-800 font-bold rounded-lg text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/10 cursor-pointer"
