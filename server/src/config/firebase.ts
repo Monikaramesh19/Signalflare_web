@@ -19,6 +19,15 @@ for (const p of pathsToCheck) {
   }
 }
 
+if (!credential && process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    credential = cert(serviceAccount);
+  } catch (err) {
+    console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT environment variable', err);
+  }
+}
+
 const app = getApps().length === 0 ? initializeApp({
   projectId: 'signalflare-ff189',
   ...(credential ? { credential } : {})
