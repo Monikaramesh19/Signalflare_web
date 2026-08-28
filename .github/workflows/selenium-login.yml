@@ -26,7 +26,7 @@ jobs:
         
     - name: Install dependencies
       working-directory: ./client
-      run: npm ci
+      run: npm install
 
     - name: Start the dev server
       working-directory: ./client
