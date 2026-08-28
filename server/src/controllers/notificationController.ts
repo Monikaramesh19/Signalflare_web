@@ -1,16 +1,18 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../config/db';
+import { adminDb } from '../config/firebase';
 
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const notifications = await prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const snapshot = await adminDb.collection('notifications')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .get();
+      
+    const notifications = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 
     return res.json(notifications);
   } catch (err) {
@@ -22,10 +24,11 @@ export const markNotificationRead = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const updated = await prisma.notification.update({
-      where: { id },
-      data: { isRead: true },
-    });
+    const notifRef = adminDb.collection('notifications').doc(id);
+    await notifRef.update({ isRead: true });
+    
+    const updatedSnap = await notifRef.get();
+    const updated = { id: updatedSnap.id, ...updatedSnap.data() };
 
     return res.json(updated);
   } catch (err) {

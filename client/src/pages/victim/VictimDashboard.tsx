@@ -164,7 +164,7 @@ export const VictimDashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-white">Victim Dashboard</h1>
-          <p className="text-xs text-slate-400">Request evacuation, coordinate emergency resources, and view live geospatial maps.</p>
+          <p className="text-xs text-slate-400">Request evacuation, coordinate emergency resources, and view live geo fencing maps.</p>
         </div>
         <button
           onClick={() => navigate('/victim/sos')}
@@ -210,11 +210,11 @@ export const VictimDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Live Geospatial Emergency Map Section */}
+      {/* Live Geo Fencing Emergency Map Section */}
       <div className="p-6 rounded-xl glass-panel border border-slate-800 space-y-4">
         <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
           <Activity className="w-4.5 h-4.5 text-cyan-400" />
-          LIVE GEOSPATIAL EMERGENCY MAP
+          LIVE GEO FENCING EMERGENCY MAP
         </h2>
         <div id="dashboard-live-map" className="h-80 w-full rounded-lg bg-slate-950/60 border border-slate-900 z-10" />
       </div>

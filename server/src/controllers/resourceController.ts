@@ -1,14 +1,26 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../config/db';
+import { adminDb } from '../config/firebase';
 import { emitToAll } from '../socket/socketHandler';
 
 export const getResources = async (req: AuthRequest, res: Response) => {
   try {
-    const resources = await prisma.resource.findMany({
-      include: { shelter: true },
-      orderBy: { name: 'asc' },
-    });
+    const snapshot = await adminDb.collection('resources').orderBy('name', 'asc').get();
+    const resources = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      let shelterData = null;
+      if (data.shelterId) {
+        const shelterDoc = await adminDb.collection('shelters').doc(data.shelterId).get();
+        if (shelterDoc.exists) shelterData = { id: shelterDoc.id, ...shelterDoc.data() };
+      }
+      resources.push({
+        id: doc.id,
+        ...data,
+        shelter: shelterData
+      });
+    }
     return res.json(resources);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch resources' });
@@ -22,18 +34,31 @@ export const createResource = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Missing resource properties' });
     }
 
-    const resource = await prisma.resource.create({
-      data: {
-        name,
-        description,
-        quantity: parseInt(quantity),
-        unit,
-        locationLat: locationLat ? parseFloat(locationLat) : null,
-        locationLng: locationLng ? parseFloat(locationLng) : null,
-        shelterId: shelterId || null,
-      },
-      include: { shelter: true },
-    });
+    const resourceData = {
+      name,
+      description,
+      quantity: parseInt(quantity),
+      unit,
+      locationLat: locationLat ? parseFloat(locationLat) : null,
+      locationLng: locationLng ? parseFloat(locationLng) : null,
+      shelterId: shelterId || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const docRef = await adminDb.collection('resources').add(resourceData);
+    
+    let shelterData = null;
+    if (shelterId) {
+      const shelterDoc = await adminDb.collection('shelters').doc(shelterId).get();
+      if (shelterDoc.exists) shelterData = { id: shelterDoc.id, ...shelterDoc.data() };
+    }
+
+    const resource = {
+      id: docRef.id,
+      ...resourceData,
+      shelter: shelterData
+    };
 
     emitToAll('resource:updated', resource);
     return res.status(201).json(resource);
@@ -47,7 +72,7 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { name, description, quantity, unit, locationLat, locationLng, shelterId } = req.body;
 
-    const data: any = {};
+    const data: any = { updatedAt: new Date().toISOString() };
     if (name) data.name = name;
     if (description !== undefined) data.description = description;
     if (quantity !== undefined) data.quantity = parseInt(quantity);
@@ -56,11 +81,23 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
     if (locationLng !== undefined) data.locationLng = parseFloat(locationLng);
     if (shelterId !== undefined) data.shelterId = shelterId || null;
 
-    const updated = await prisma.resource.update({
-      where: { id },
-      data,
-      include: { shelter: true },
-    });
+    const docRef = adminDb.collection('resources').doc(id);
+    await docRef.update(data);
+    
+    const updatedSnap = await docRef.get();
+    const updatedData = updatedSnap.data() as any;
+
+    let shelterData = null;
+    if (updatedData.shelterId) {
+      const shelterDoc = await adminDb.collection('shelters').doc(updatedData.shelterId).get();
+      if (shelterDoc.exists) shelterData = { id: shelterDoc.id, ...shelterDoc.data() };
+    }
+    
+    const updated = {
+      id: updatedSnap.id,
+      ...updatedData,
+      shelter: shelterData
+    };
 
     emitToAll('resource:updated', updated);
     return res.json(updated);
@@ -72,7 +109,7 @@ export const updateResource = async (req: AuthRequest, res: Response) => {
 export const deleteResource = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    await prisma.resource.delete({ where: { id } });
+    await adminDb.collection('resources').doc(id).delete();
     emitToAll('resource:updated', { id, deleted: true });
     return res.json({ success: true, message: 'Resource deleted' });
   } catch (err) {

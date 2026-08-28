@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../config/db';
+import { adminDb } from '../config/firebase';
 import { emitToRole, emitToUser, emitToAll } from '../socket/socketHandler';
 
 interface SyncItem {
@@ -14,7 +14,7 @@ export const syncOfflineData = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { queue } = req.body; // Array of SyncItem
+    const { queue } = req.body; 
     if (!queue || !Array.isArray(queue)) {
       return res.status(400).json({ error: 'Sync queue must be an array' });
     }
@@ -25,68 +25,77 @@ export const syncOfflineData = async (req: AuthRequest, res: Response) => {
       const { id: tempId, action, payload } = item;
       try {
         if (action === 'CREATE_SOS') {
-          const sos = await prisma.sOSRequest.create({
-            data: {
-              victimId: userId,
-              emergencyType: payload.emergencyType || 'OTHER',
-              severity: payload.severity || 'MEDIUM',
-              peopleCount: payload.peopleCount ? parseInt(payload.peopleCount) : 1,
-              locationLat: parseFloat(payload.locationLat),
-              locationLng: parseFloat(payload.locationLng),
-              address: payload.address,
-              message: payload.message,
-              contactPhone: payload.contactPhone,
-              status: 'CREATED',
-            },
-            include: { victim: { select: { id: true, name: true, phone: true } } },
-          });
+          const sosData = {
+            victimId: userId,
+            emergencyType: payload.emergencyType || 'OTHER',
+            severity: payload.severity || 'MEDIUM',
+            peopleCount: payload.peopleCount ? parseInt(payload.peopleCount) : 1,
+            locationLat: parseFloat(payload.locationLat),
+            locationLng: parseFloat(payload.locationLng),
+            address: payload.address || null,
+            message: payload.message || null,
+            contactPhone: payload.contactPhone || null,
+            status: 'CREATED',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
 
-          // Upload photos if any
+          const docRef = await adminDb.collection('sosRequests').add(sosData);
+
           if (payload.photo) {
-            await prisma.emergencyPhoto.create({
-              data: {
-                sosRequestId: sos.id,
-                photoUrl: payload.photo,
-              },
+            await adminDb.collection('emergencyPhotos').add({
+              sosRequestId: docRef.id,
+              photoUrl: payload.photo,
+              createdAt: new Date().toISOString(),
             });
           }
+
+          const victimDoc = await adminDb.collection('users').doc(userId).get();
+          const sos = { id: docRef.id, ...sosData, victim: victimDoc.exists ? victimDoc.data() : null };
 
           // Socket Broadcast
           emitToRole('RESCUE', 'sos:created', sos);
           emitToRole('VOLUNTEER', 'sos:created', sos);
 
-          results.push({ tempId, status: 'SUCCESS', originalId: sos.id });
+          results.push({ tempId, status: 'SUCCESS', originalId: docRef.id });
         } else if (action === 'CREATE_RESOURCE_REQ') {
-          const reqItem = await prisma.resourceRequest.create({
-            data: {
-              victimId: userId,
-              resourceName: payload.resourceName,
-              quantity: parseInt(payload.quantity),
-              locationLat: payload.locationLat ? parseFloat(payload.locationLat) : null,
-              locationLng: payload.locationLng ? parseFloat(payload.locationLng) : null,
-              address: payload.address,
-              contactPhone: payload.contactPhone,
-              status: 'PENDING',
-            },
-            include: { victim: { select: { id: true, name: true, phone: true } } },
-          });
+          const reqData = {
+            victimId: userId,
+            resourceName: payload.resourceName,
+            quantity: parseInt(payload.quantity),
+            locationLat: payload.locationLat ? parseFloat(payload.locationLat) : null,
+            locationLng: payload.locationLng ? parseFloat(payload.locationLng) : null,
+            address: payload.address || null,
+            contactPhone: payload.contactPhone || null,
+            status: 'PENDING',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const docRef = await adminDb.collection('resourceRequests').add(reqData);
+
+          const victimDoc = await adminDb.collection('users').doc(userId).get();
+          const reqItem = { id: docRef.id, ...reqData, victim: victimDoc.exists ? victimDoc.data() : null };
 
           emitToRole('RESCUE', 'request:created', reqItem);
           emitToRole('VOLUNTEER', 'request:created', reqItem);
 
-          results.push({ tempId, status: 'SUCCESS', originalId: reqItem.id });
+          results.push({ tempId, status: 'SUCCESS', originalId: docRef.id });
         } else if (action === 'SEND_MESSAGE') {
-          const msg = await prisma.message.create({
-            data: {
-              senderId: userId,
-              receiverId: payload.receiverId,
-              content: payload.content,
-            },
-          });
+          const msgData = {
+            senderId: userId,
+            receiverId: payload.receiverId,
+            content: payload.content,
+            createdAt: new Date().toISOString(),
+            isRead: false,
+          };
+          
+          const docRef = await adminDb.collection('messages').add(msgData);
+          const msg = { id: docRef.id, ...msgData };
 
           emitToUser(payload.receiverId, 'message:received', msg);
 
-          results.push({ tempId, status: 'SUCCESS', originalId: msg.id });
+          results.push({ tempId, status: 'SUCCESS', originalId: docRef.id });
         } else {
           results.push({ tempId, status: 'FAILED', error: 'Unknown sync action' });
         }
@@ -97,13 +106,12 @@ export const syncOfflineData = async (req: AuthRequest, res: Response) => {
     }
 
     // Audit sync action
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: 'SYNC',
-        details: `Synced ${queue.length} items. Success: ${results.filter((r) => r.status === 'SUCCESS').length}`,
-        ipAddress: req.ip,
-      },
+    await adminDb.collection('auditLogs').add({
+      userId,
+      action: 'SYNC',
+      details: `Synced ${queue.length} items. Success: ${results.filter((r) => r.status === 'SUCCESS').length}`,
+      ipAddress: req.ip,
+      createdAt: new Date().toISOString(),
     });
 
     emitToUser(userId, 'sync:completed', { results });

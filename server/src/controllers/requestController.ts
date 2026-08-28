@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../config/db';
+import { adminDb } from '../config/firebase';
 import { emitToRole, emitToUser, emitToAll } from '../socket/socketHandler';
 
 // General Emergency Request
@@ -15,21 +15,28 @@ export const createEmergencyRequest = async (req: AuthRequest, res: Response) =>
       return res.status(400).json({ error: 'Missing emergency request details' });
     }
 
-    const request = await prisma.emergencyRequest.create({
-      data: {
-        victimId,
-        type,
-        severity,
-        locationLat: parseFloat(locationLat),
-        locationLng: parseFloat(locationLng),
-        address,
-        description,
-        status: 'PENDING',
-      },
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-      },
-    });
+    const requestData = {
+      victimId,
+      type,
+      severity,
+      locationLat: parseFloat(locationLat),
+      locationLng: parseFloat(locationLng),
+      address: address || null,
+      description,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const reqRef = await adminDb.collection('emergencyRequests').add(requestData);
+
+    const victimDoc = await adminDb.collection('users').doc(victimId).get();
+    
+    const request = {
+      id: reqRef.id,
+      ...requestData,
+      victim: victimDoc.exists ? victimDoc.data() : null
+    };
 
     emitToRole('RESCUE', 'request:created', request);
     emitToRole('VOLUNTEER', 'request:created', request);
@@ -42,10 +49,19 @@ export const createEmergencyRequest = async (req: AuthRequest, res: Response) =>
 
 export const getEmergencyRequests = async (req: AuthRequest, res: Response) => {
   try {
-    const requests = await prisma.emergencyRequest.findMany({
-      include: { victim: { select: { id: true, name: true, phone: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const snapshot = await adminDb.collection('emergencyRequests').orderBy('createdAt', 'desc').get();
+    const requests = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const victimDoc = await adminDb.collection('users').doc(data.victimId).get();
+      requests.push({
+        id: doc.id,
+        ...data,
+        victim: victimDoc.exists ? victimDoc.data() : null
+      });
+    }
+
     return res.json(requests);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch emergency requests' });
@@ -64,21 +80,28 @@ export const createResourceRequest = async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ error: 'Missing resource details' });
     }
 
-    const request = await prisma.resourceRequest.create({
-      data: {
-        victimId,
-        resourceName,
-        quantity: parseInt(quantity),
-        locationLat: locationLat ? parseFloat(locationLat) : null,
-        locationLng: locationLng ? parseFloat(locationLng) : null,
-        address,
-        contactPhone,
-        status: 'PENDING',
-      },
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-      },
-    });
+    const requestData = {
+      victimId,
+      resourceName,
+      quantity: parseInt(quantity),
+      locationLat: locationLat ? parseFloat(locationLat) : null,
+      locationLng: locationLng ? parseFloat(locationLng) : null,
+      address: address || null,
+      contactPhone: contactPhone || null,
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const reqRef = await adminDb.collection('resourceRequests').add(requestData);
+
+    const victimDoc = await adminDb.collection('users').doc(victimId).get();
+
+    const request = {
+      id: reqRef.id,
+      ...requestData,
+      victim: victimDoc.exists ? victimDoc.data() : null
+    };
 
     emitToRole('RESCUE', 'request:created', request);
     emitToRole('VOLUNTEER', 'request:created', request);
@@ -92,13 +115,31 @@ export const createResourceRequest = async (req: AuthRequest, res: Response) => 
 
 export const getResourceRequests = async (req: AuthRequest, res: Response) => {
   try {
-    const requests = await prisma.resourceRequest.findMany({
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const snapshot = await adminDb.collection('resourceRequests').orderBy('createdAt', 'desc').get();
+    const requests = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data() as any;
+      const victimDoc = await adminDb.collection('users').doc(data.victimId).get();
+      
+      let volunteerData = null;
+      if (data.volunteerId) {
+        const volDoc = await adminDb.collection('volunteers').doc(data.volunteerId).get();
+        if (volDoc.exists) {
+          const volInfo = volDoc.data() as any;
+          const volUserDoc = await adminDb.collection('users').doc(volInfo.userId).get();
+          volunteerData = { ...volInfo, user: volUserDoc.exists ? volUserDoc.data() : null };
+        }
+      }
+
+      requests.push({
+        id: doc.id,
+        ...data,
+        victim: victimDoc.exists ? victimDoc.data() : null,
+        volunteer: volunteerData
+      });
+    }
+
     return res.json(requests);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch resource requests' });
@@ -108,14 +149,30 @@ export const getResourceRequests = async (req: AuthRequest, res: Response) => {
 export const getResourceRequestDetails = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const request = await prisma.resourceRequest.findUnique({
-      where: { id },
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-    });
-    if (!request) return res.status(404).json({ error: 'Resource request not found' });
+    const doc = await adminDb.collection('resourceRequests').doc(id).get();
+    
+    if (!doc.exists) return res.status(404).json({ error: 'Resource request not found' });
+    
+    const data = doc.data() as any;
+    const victimDoc = await adminDb.collection('users').doc(data.victimId).get();
+    
+    let volunteerData = null;
+    if (data.volunteerId) {
+      const volDoc = await adminDb.collection('volunteers').doc(data.volunteerId).get();
+      if (volDoc.exists) {
+        const volInfo = volDoc.data() as any;
+        const volUserDoc = await adminDb.collection('users').doc(volInfo.userId).get();
+        volunteerData = { ...volInfo, user: volUserDoc.exists ? volUserDoc.data() : null };
+      }
+    }
+
+    const request = {
+      id: doc.id,
+      ...data,
+      victim: victimDoc.exists ? victimDoc.data() : null,
+      volunteer: volunteerData
+    };
+
     return res.json(request);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to fetch resource request details' });
@@ -127,36 +184,53 @@ export const updateResourceRequest = async (req: AuthRequest, res: Response) => 
     const { id } = req.params;
     const { status, volunteerId } = req.body;
 
-    const request = await prisma.resourceRequest.findUnique({ where: { id } });
-    if (!request) return res.status(404).json({ error: 'Resource request not found' });
+    const reqRef = adminDb.collection('resourceRequests').doc(id);
+    const reqSnap = await reqRef.get();
+    
+    if (!reqSnap.exists) return res.status(404).json({ error: 'Resource request not found' });
 
-    const updateData: any = {};
+    const updateData: any = { updatedAt: new Date().toISOString() };
     if (status) updateData.status = status;
     if (volunteerId !== undefined) updateData.volunteerId = volunteerId;
 
-    const updated = await prisma.resourceRequest.update({
-      where: { id },
-      data: updateData,
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-    });
+    await reqRef.update(updateData);
+    
+    const updatedSnap = await reqRef.get();
+    const updatedData = updatedSnap.data() as any;
+    
+    const victimDoc = await adminDb.collection('users').doc(updatedData.victimId).get();
+    
+    let volunteerData = null;
+    if (updatedData.volunteerId) {
+      const volDoc = await adminDb.collection('volunteers').doc(updatedData.volunteerId).get();
+      if (volDoc.exists) {
+        const volInfo = volDoc.data() as any;
+        const volUserDoc = await adminDb.collection('users').doc(volInfo.userId).get();
+        volunteerData = { ...volInfo, user: volUserDoc.exists ? volUserDoc.data() : null };
+      }
+    }
+
+    const updated = {
+      id: updatedSnap.id,
+      ...updatedData,
+      victim: victimDoc.exists ? victimDoc.data() : null,
+      volunteer: volunteerData
+    };
 
     // Notify victim
-    await prisma.notification.create({
-      data: {
-        userId: updated.victimId,
-        title: 'Resource Request Update',
-        message: `Your request for ${updated.resourceName} is now: ${updated.status}`,
-        type: 'RESOURCE_DELIVERED',
-      },
+    await adminDb.collection('notifications').add({
+      userId: updatedData.victimId,
+      title: 'Resource Request Update',
+      message: `Your request for ${updatedData.resourceName} is now: ${updatedData.status}`,
+      type: 'RESOURCE_DELIVERED',
+      createdAt: new Date().toISOString(),
+      isRead: false
     });
 
     emitToAll('request:updated', updated);
-    emitToUser(updated.victimId, 'notification:new', {
+    emitToUser(updatedData.victimId, 'notification:new', {
       title: 'Resource Request Update',
-      message: `Your request for ${updated.resourceName} is now: ${updated.status}`,
+      message: `Your request for ${updatedData.resourceName} is now: ${updatedData.status}`,
     });
 
     return res.json(updated);

@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-signalflare-jwt-key-2026';
+import { adminAuth, adminDb } from '../config/firebase';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -12,7 +10,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized: Missing or invalid token format' });
@@ -21,15 +19,27 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
-      id: string;
-      email: string;
-      role: string;
-      name: string;
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    
+    // Fetch user profile from Firestore to get role and name
+    const userDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
+    
+    if (!userDoc.exists) {
+      return res.status(401).json({ error: 'Unauthorized: User profile not found in database' });
+    }
+    
+    const userData = userDoc.data();
+    
+    req.user = {
+      id: decodedToken.uid,
+      email: decodedToken.email || userData?.email,
+      role: userData?.role || 'VICTIM',
+      name: userData?.name || 'Unknown User'
     };
-    req.user = decoded;
+    
     next();
   } catch (err) {
+    console.error('Firebase Auth Error:', err);
     return res.status(401).json({ error: 'Unauthorized: Invalid token session' });
   }
 };

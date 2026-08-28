@@ -109,38 +109,7 @@ export const Login: React.FC = () => {
           </Link>
         </div>
 
-        {/* Demo shortcuts */}
-        <div className="mt-8 pt-6 border-t border-slate-900">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 text-center">
-            Demo Account Shortcuts (Pass: password123)
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
-            <button
-              onClick={() => loadDemoAccount('victim@signalflare.demo')}
-              className="py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg font-semibold text-slate-300 cursor-pointer"
-            >
-              Victim
-            </button>
-            <button
-              onClick={() => loadDemoAccount('volunteer@signalflare.demo')}
-              className="py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg font-semibold text-slate-300 cursor-pointer"
-            >
-              Volunteer
-            </button>
-            <button
-              onClick={() => loadDemoAccount('rescue@signalflare.demo')}
-              className="py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg font-semibold text-slate-300 cursor-pointer"
-            >
-              Rescue Team
-            </button>
-            <button
-              onClick={() => loadDemoAccount('admin@signalflare.demo')}
-              className="py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg font-semibold text-slate-300 cursor-pointer"
-            >
-              System Admin
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );

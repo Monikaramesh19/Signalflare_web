@@ -90,7 +90,7 @@ export const Contacts: React.FC = () => {
     });
 
     // Register telemetry log internally
-    console.log('Geospatial location telemetry logged for emergency call.');
+    console.log('Geo Fencing location telemetry logged for emergency call.');
 
     // Trigger Dialer
     window.location.href = `tel:${selectedContact.tel}`;

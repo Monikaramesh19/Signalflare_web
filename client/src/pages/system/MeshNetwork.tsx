@@ -73,7 +73,7 @@ export const MeshNetwork: React.FC = () => {
 
     if (!mapRef.current) {
       // Create map
-      const map = L.map('geospatial-map').setView([userLoc.lat, userLoc.lng], 13);
+      const map = L.map('geo fencing-map').setView([userLoc.lat, userLoc.lng], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
@@ -152,15 +152,15 @@ export const MeshNetwork: React.FC = () => {
         <div>
           <h1 className="text-3xl font-black text-white flex items-center gap-2">
             <Compass className="w-8 h-8 text-cyan-400 animate-pulse" />
-            📡 SignalFlare Geospatial Network
+            📡 SignalFlare Geo Fencing Network
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time geospatial mapping, GPS tracking, disaster zone telemetry, and proximity calculations.
+            Real-time geo fencing mapping, GPS tracking, disaster zone telemetry, and proximity calculations.
           </p>
         </div>
         {gpsStatus === 'DEMO' && (
           <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-mono text-[10px] font-bold h-fit uppercase tracking-wider animate-pulse">
-            ⚠️ DEMO MODE — GEOSPATIAL DATA SIMULATED
+            ⚠️ DEMO MODE — GEO FENCING DATA SIMULATED
           </span>
         )}
       </div>
@@ -208,7 +208,7 @@ export const MeshNetwork: React.FC = () => {
         </div>
       </div>
 
-      {/* Geospatial Map Container */}
+      {/* Geo Fencing Map Container */}
       <div className="p-6 rounded-xl glass-panel border border-slate-800 space-y-4">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Interactive Operations Map</h3>
         
@@ -217,7 +217,7 @@ export const MeshNetwork: React.FC = () => {
             Awaiting GNSS Satellite Fix...
           </div>
         ) : (
-          <div id="geospatial-map" className="h-[450px] w-full rounded-lg relative z-10 border border-slate-800" />
+          <div id="geo fencing-map" className="h-[450px] w-full rounded-lg relative z-10 border border-slate-800" />
         )}
 
         {/* Legend */}
@@ -235,7 +235,7 @@ export const MeshNetwork: React.FC = () => {
       {/* Nearest Emergency Resources List */}
       <div className="p-6 rounded-xl glass-panel border border-slate-800 space-y-4">
         <h2 className="text-lg font-bold text-white">NEAREST EMERGENCY RESOURCES</h2>
-        <p className="text-xs text-slate-400">Discovered resources sorted automatically by geospatial distance from your current coordinate.</p>
+        <p className="text-xs text-slate-400">Discovered resources sorted automatically by geo fencing distance from your current coordinate.</p>
 
         {loadingGps ? (
           <div className="py-4 font-mono text-xs text-slate-500">Calculating proximities...</div>
@@ -281,7 +281,7 @@ export const MeshNetwork: React.FC = () => {
       <div className="p-4 rounded-xl bg-slate-950 border border-slate-900 flex gap-3 text-xs text-slate-400 leading-relaxed">
         <Info className="w-5 h-5 flex-shrink-0 text-cyan-400" />
         <p>
-          SignalFlare uses GPS coordinates and geospatial lookup algorithms to verify nearest rescue nodes and shelters. Distance indicators update automatically according to standard coordinate updates.
+          SignalFlare uses GPS coordinates and geo fencing lookup algorithms to verify nearest rescue nodes and shelters. Distance indicators update automatically according to standard coordinate updates.
         </p>
       </div>
     </div>

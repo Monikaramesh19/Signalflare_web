@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import prisma from '../config/db';
+import { adminDb } from '../config/firebase';
 import { emitToRole, emitToUser, emitToRoom, emitToAll } from '../socket/socketHandler';
 
 export const createSOS = async (req: AuthRequest, res: Response) => {
@@ -19,65 +19,58 @@ export const createSOS = async (req: AuthRequest, res: Response) => {
       address,
       message,
       contactPhone,
-      photo, // Optional base64 photo string
+      photo,
     } = req.body;
 
     if (!emergencyType || !severity || locationLat === undefined || locationLng === undefined) {
       return res.status(400).json({ error: 'Missing required SOS details' });
     }
 
-    const sos = await prisma.sOSRequest.create({
-      data: {
-        victimId,
-        emergencyType,
-        severity, // 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'
-        peopleCount: peopleCount ? parseInt(peopleCount) : 1,
-        locationLat: parseFloat(locationLat),
-        locationLng: parseFloat(locationLng),
-        address,
-        message,
-        contactPhone,
-        status: 'CREATED',
-      },
-      include: {
-        victim: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            email: true,
-          },
-        },
-        photos: true,
-      },
-    });
+    const sosData = {
+      victimId,
+      emergencyType,
+      severity,
+      peopleCount: peopleCount ? parseInt(peopleCount) : 1,
+      locationLat: parseFloat(locationLat),
+      locationLng: parseFloat(locationLng),
+      address: address || null,
+      message: message || null,
+      contactPhone: contactPhone || null,
+      status: 'CREATED',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const sosRef = await adminDb.collection('sosRequests').add(sosData);
 
     if (photo) {
-      await prisma.emergencyPhoto.create({
-        data: {
-          sosRequestId: sos.id,
-          photoUrl: photo,
-        },
+      await adminDb.collection('emergencyPhotos').add({
+        sosRequestId: sosRef.id,
+        photoUrl: photo,
+        createdAt: new Date().toISOString(),
       });
     }
 
-    // Refresh SOS with photos
-    const finalSos = await prisma.sOSRequest.findUnique({
-      where: { id: sos.id },
-      include: {
-        victim: { select: { id: true, name: true, phone: true, email: true } },
-        photos: true,
-      },
-    });
+    // Fetch victim details to include in the response
+    const victimDoc = await adminDb.collection('users').doc(victimId).get();
+    const victimData = victimDoc.exists ? victimDoc.data() : { id: victimId };
+    
+    // Construct final SOS object
+    const finalSos = {
+      id: sosRef.id,
+      ...sosData,
+      victim: victimData,
+      photos: photo ? [{ photoUrl: photo }] : [],
+    };
 
     // Create a system-wide notification
-    await prisma.notification.create({
-      data: {
-        userId: victimId,
-        title: 'SOS Broadcast Active',
-        message: `Your SOS for ${emergencyType} emergency was successfully broadcasted.`,
-        type: 'SOS_UPDATE',
-      },
+    await adminDb.collection('notifications').add({
+      userId: victimId,
+      title: 'SOS Broadcast Active',
+      message: `Your SOS for ${emergencyType} emergency was successfully broadcasted.`,
+      type: 'SOS_UPDATE',
+      createdAt: new Date().toISOString(),
+      isRead: false
     });
 
     // Emit Socket.IO Events
@@ -97,15 +90,19 @@ export const createSOS = async (req: AuthRequest, res: Response) => {
 
 export const getSOSRequests = async (req: AuthRequest, res: Response) => {
   try {
-    const requests = await prisma.sOSRequest.findMany({
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-        photos: true,
-        responderTeam: true,
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const snapshot = await adminDb.collection('sosRequests').orderBy('createdAt', 'desc').get();
+    const requests = [];
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const victimDoc = await adminDb.collection('users').doc(data.victimId).get();
+      requests.push({
+        id: doc.id,
+        ...data,
+        victim: victimDoc.exists ? victimDoc.data() : null
+      });
+    }
+
     return res.json(requests);
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to fetch SOS requests' });
@@ -115,19 +112,20 @@ export const getSOSRequests = async (req: AuthRequest, res: Response) => {
 export const getSOSDetails = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const request = await prisma.sOSRequest.findUnique({
-      where: { id },
-      include: {
-        victim: { select: { id: true, name: true, phone: true, email: true } },
-        photos: true,
-        responderTeam: true,
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-    });
-
-    if (!request) {
+    const doc = await adminDb.collection('sosRequests').doc(id).get();
+    
+    if (!doc.exists) {
       return res.status(404).json({ error: 'SOS request not found' });
     }
+    
+    const data = doc.data() as any;
+    const victimDoc = await adminDb.collection('users').doc(data.victimId).get();
+    
+    const request = {
+      id: doc.id,
+      ...data,
+      victim: victimDoc.exists ? victimDoc.data() : null
+    };
 
     return res.json(request);
   } catch (err: any) {
@@ -140,40 +138,37 @@ export const updateSOSStatus = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { status, volunteerId, responderTeamId } = req.body;
 
-    const currentRequest = await prisma.sOSRequest.findUnique({ where: { id } });
-    if (!currentRequest) {
+    const docRef = adminDb.collection('sosRequests').doc(id);
+    const docSnap = await docRef.get();
+    
+    if (!docSnap.exists) {
       return res.status(404).json({ error: 'SOS request not found' });
     }
 
-    const updateData: any = {};
+    const updateData: any = { updatedAt: new Date().toISOString() };
     if (status) updateData.status = status;
     if (volunteerId !== undefined) updateData.volunteerId = volunteerId;
     if (responderTeamId !== undefined) updateData.responderTeamId = responderTeamId;
 
-    const updated = await prisma.sOSRequest.update({
-      where: { id },
-      data: updateData,
-      include: {
-        victim: { select: { id: true, name: true, phone: true } },
-        photos: true,
-        responderTeam: true,
-        volunteer: { include: { user: { select: { name: true, phone: true } } } },
-      },
-    });
+    await docRef.update(updateData);
+    
+    const updatedSnap = await docRef.get();
+    const updatedData = updatedSnap.data() as any;
+    const updated = { id: updatedSnap.id, ...updatedData };
 
     // Notify victim
-    await prisma.notification.create({
-      data: {
-        userId: updated.victimId,
-        title: 'SOS Status Updated',
-        message: `Your SOS status is now: ${status}`,
-        type: 'SOS_UPDATE',
-      },
+    await adminDb.collection('notifications').add({
+      userId: updatedData.victimId,
+      title: 'SOS Status Updated',
+      message: `Your SOS status is now: ${status}`,
+      type: 'SOS_UPDATE',
+      createdAt: new Date().toISOString(),
+      isRead: false
     });
 
     // Real-time broadcasts
     emitToAll('sos:updated', updated);
-    emitToUser(updated.victimId, 'notification:new', {
+    emitToUser(updatedData.victimId, 'notification:new', {
       title: 'SOS Status Updated',
       message: `Your SOS status is now: ${status}`,
       sosId: id,
@@ -190,7 +185,7 @@ export const updateSOSStatus = async (req: AuthRequest, res: Response) => {
 export const deleteSOSRequest = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    await prisma.sOSRequest.delete({ where: { id } });
+    await adminDb.collection('sosRequests').doc(id).delete();
     emitToAll('sos:updated', { id, status: 'DELETED' });
     return res.json({ success: true, message: 'SOS request cancelled' });
   } catch (err: any) {

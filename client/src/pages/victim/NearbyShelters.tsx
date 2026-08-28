@@ -120,12 +120,12 @@ export const NearbyShelters: React.FC = () => {
             Disaster Relief Shelters
           </h1>
           <p className="text-xs text-slate-400">
-            Locate active safe camps and query live occupancy levels sorted by geospatial proximity.
+            Locate active safe camps and query live occupancy levels sorted by geo fencing proximity.
           </p>
         </div>
         {gpsStatus === 'DEMO' && (
           <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-mono text-[10px] font-bold h-fit uppercase tracking-wider animate-pulse">
-            ⚠️ DEMO MODE — GEOSPATIAL DATA SIMULATED
+            ⚠️ DEMO MODE — GEO FENCING DATA SIMULATED
           </span>
         )}
       </div>

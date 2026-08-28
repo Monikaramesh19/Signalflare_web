@@ -268,7 +268,7 @@ export const SOSEmergencyPanel: React.FC = () => {
         payload.severity === 'CRITICAL' || payload.severity === 'HIGH' ? 'CRITICAL' : 'MEDIUM'
       );
       
-      alert('⚠️ OFFLINE MODE: SOS saved locally. Geospatial emergency tracking activated immediately.\n\n✓ Saved locally\n✓ Proximity calculations active\n✓ Operations gateway notified');
+      alert('⚠️ OFFLINE MODE: SOS saved locally. Geo Fencing emergency tracking activated immediately.\n\n✓ Saved locally\n✓ Proximity calculations active\n✓ Operations gateway notified');
       navigate('/mesh');
     } catch (err) {
       console.error(err);

@@ -37,7 +37,7 @@ export const LocationSharePanel: React.FC = () => {
   const [gpsStatus, setGpsStatus] = useState<'REAL' | 'DEMO'>('DEMO');
   const [duration, setDuration] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
-  const [geospatialStatusLogs, setGeospatialStatusLogs] = useState<string[]>([]);
+  const [geospatialStatusLogs, setGeoFencingStatusLogs] = useState<string[]>([]);
 
   const durationIntervalRef = useRef<any>(null);
   const gpsIntervalRef = useRef<any>(null);
@@ -250,7 +250,7 @@ export const LocationSharePanel: React.FC = () => {
       status: emergencyTracking ? 'EMERGENCY_ACTIVE' : 'TELEMETRY_SHARE',
     };
 
-    setGeospatialStatusLogs((prev) => [
+    setGeoFencingStatusLogs((prev) => [
       `📍 Coordinates captured: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`,
       `✓ Saved telemetry log internally`,
       ...prev.slice(0, 3)
@@ -270,13 +270,13 @@ export const LocationSharePanel: React.FC = () => {
           contactPhone: user?.phone || '9876543210',
           createdAt: Date.now(),
         });
-        setGeospatialStatusLogs((prev) => [
+        setGeoFencingStatusLogs((prev) => [
           `🟢 Transmitted coordinates to Operations dashboard`,
           ...prev
         ]);
       } catch (err: any) {
         console.error('Failed to sync location to server:', err);
-        setGeospatialStatusLogs((prev) => [
+        setGeoFencingStatusLogs((prev) => [
           `❌ Telemetry Sync failed: ${err.message || err}`,
           ...prev
         ]);
@@ -315,7 +315,7 @@ export const LocationSharePanel: React.FC = () => {
         <div>
           <h1 className="text-3xl font-black text-white flex items-center gap-2">
             <MapPin className="w-8 h-8 text-cyan-400" />
-            Geospatial Location Tracking
+            Geo Fencing Location Tracking
           </h1>
           <p className="text-xs text-slate-400">
             Monitor GPS coordinates, telemetry feeds, and map distance overlays to emergency hubs.
@@ -323,7 +323,7 @@ export const LocationSharePanel: React.FC = () => {
         </div>
         {gpsStatus === 'DEMO' && (
           <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded font-mono text-[10px] font-bold h-fit uppercase tracking-wider animate-pulse">
-            ⚠️ DEMO MODE — GEOSPATIAL DATA SIMULATED
+            ⚠️ DEMO MODE — GEO FENCING DATA SIMULATED
           </span>
         )}
       </div>
@@ -334,7 +334,7 @@ export const LocationSharePanel: React.FC = () => {
         <div className="space-y-6 lg:col-span-1">
           {/* Status Panel */}
           <div className="p-5 rounded-xl glass-panel border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Geospatial Telemetry</h3>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Geo Fencing Telemetry</h3>
             <div className="space-y-2.5 font-mono text-xs text-slate-300">
               <div className="flex justify-between">
                 <span className="text-slate-500">Internet:</span>
@@ -349,7 +349,7 @@ export const LocationSharePanel: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Geospatial Network:</span>
+                <span className="text-slate-500">Geo Fencing Network:</span>
                 <span className="font-bold text-emerald-400">🟢 CONNECTED</span>
               </div>
               <div className="flex justify-between">
@@ -521,7 +521,7 @@ export const LocationSharePanel: React.FC = () => {
           {/* Action Log History */}
           {geospatialStatusLogs.length > 0 && (
             <div className="p-6 rounded-xl glass-panel border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Geospatial Routing logs</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Geo Fencing Routing logs</h3>
               <div className="space-y-2.5 font-mono text-[10px] text-slate-400">
                 {geospatialStatusLogs.map((log, idx) => (
                   <div key={idx} className="p-2 bg-slate-950/20 border border-slate-900/60 rounded">

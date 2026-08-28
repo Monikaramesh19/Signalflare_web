@@ -55,7 +55,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           { name: 'Nearby Shelters', path: '/victim/shelters', icon: <Compass className="w-5 h-5" /> },
           { name: 'Location Tracking', path: '/victim/location', icon: <Map className="w-5 h-5" /> },
           { name: 'Emergency Contacts', path: '/victim/contacts', icon: <HelpCircle className="w-5 h-5" /> },
-          { name: 'Geospatial Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
+          { name: 'Geo Fencing Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
           { name: 'Profile & Settings', path: '/victim/profile', icon: <UserIcon className="w-5 h-5" /> },
         ];
       case 'VOLUNTEER':
@@ -66,7 +66,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           { name: 'Delivery Center', path: '/volunteer/delivery', icon: <ClipboardList className="w-5 h-5" /> },
           { name: 'Responder Map', path: '/volunteer/map', icon: <Map className="w-5 h-5" /> },
           { name: 'Chat Box', path: '/volunteer/chat', icon: <MessageSquare className="w-5 h-5" /> },
-          { name: 'Geospatial Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400 animate-pulse" /> },
+          { name: 'Geo Fencing Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400 animate-pulse" /> },
           { name: 'Profile & Skills', path: '/volunteer/profile', icon: <UserIcon className="w-5 h-5" /> },
         ];
       case 'RESCUE':
@@ -78,7 +78,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           { name: 'Shelters', path: '/rescue/shelters', icon: <Compass className="w-5 h-5" /> },
           { name: 'Resources Inventory', path: '/rescue/resources', icon: <ClipboardList className="w-5 h-5" /> },
           { name: 'Communication', path: '/rescue/chat', icon: <MessageSquare className="w-5 h-5" /> },
-          { name: 'Geospatial Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
+          { name: 'Geo Fencing Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
           { name: 'Analytics Board', path: '/rescue/analytics', icon: <Activity className="w-5 h-5" /> },
         ];
       case 'ADMIN':
@@ -90,7 +90,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           { name: 'System Analytics', path: '/admin/analytics', icon: <Activity className="w-5 h-5" /> },
           { name: 'Server Telemetry', path: '/admin/health', icon: <Database className="w-5 h-5" /> },
           { name: 'Audit Tracker', path: '/admin/audit-logs', icon: <Shield className="w-5 h-5" /> },
-          { name: 'Geospatial Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
+          { name: 'Geo Fencing Network', path: '/mesh', icon: <Radio className="w-5 h-5 text-cyan-400" /> },
         ];
       default:
         return [];
@@ -133,7 +133,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       {/* Top Banner for Offline Mode */}
       {status === 'OFFLINE' && (
         <div className="bg-cyan-950/60 border-b border-cyan-500/20 px-4 py-2 text-center text-xs font-medium text-cyan-300 backdrop-blur-md">
-          📡 Internet Unavailable. Geospatial tracking and nearest resource lookup are active. Sharing location telemetry.
+          📡 Internet Unavailable. Geo Fencing tracking and nearest resource lookup are active. Sharing location telemetry.
         </div>
       )}
 
