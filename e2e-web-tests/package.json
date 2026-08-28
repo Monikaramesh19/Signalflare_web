@@ -1,0 +1,15 @@
+{
+  "name": "signalflare-e2e-web-selenium",
+  "version": "1.0.0",
+  "description": "Selenium WebDriver E2E testing framework for SignalFlare",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test-cases/**/*.js --reporter ./reporters/excelReporter.js"
+  },
+  "dependencies": {
+    "chai": "^4.3.7",
+    "exceljs": "^4.4.0",
+    "mocha": "^10.2.0",
+    "selenium-webdriver": "^4.18.1"
+  }
+}

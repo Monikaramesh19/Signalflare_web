@@ -1,0 +1,23 @@
+{
+  "name": "signalflare-e2e-mobile",
+  "version": "1.0.0",
+  "description": "Appium E2E testing framework for SignalFlare",
+  "main": "index.js",
+  "scripts": {
+    "wdio": "wdio run ./wdio.conf.ts"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@wdio/appium-service": "^9.0.0",
+    "@wdio/cli": "^9.0.0",
+    "@wdio/local-runner": "^9.0.0",
+    "@wdio/mocha-framework": "^9.0.0",
+    "@wdio/spec-reporter": "^9.0.0",
+    "appium": "^2.11.2",
+    "appium-uiautomator2-driver": "^3.7.8"
+  }
+}
