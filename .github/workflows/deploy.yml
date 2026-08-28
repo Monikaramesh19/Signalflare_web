@@ -36,6 +36,8 @@ jobs:
       - name: Build React App
         working-directory: ./client
         run: npm run build
+        env:
+          CI: false
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
