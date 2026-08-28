@@ -1,0 +1,42 @@
+name: Selenium E2E Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: 'client/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: ./client
+      run: npm ci
+
+    - name: Start the dev server
+      working-directory: ./client
+      run: npm run dev &
+      
+    - name: Wait for server to be ready
+      run: npx --yes wait-on http://localhost:5173
+
+    - name: Run Selenium Tests
+      working-directory: ./client
+      run: npm run login
+      env:
+        CI: true
