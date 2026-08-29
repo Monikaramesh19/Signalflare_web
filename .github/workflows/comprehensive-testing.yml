@@ -24,6 +24,11 @@ jobs:
       - name: Run Web E2E Tests
         working-directory: ./e2e-web-tests
         run: npm test || true
+      - name: Upload Selenium Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Selenium-Web-Test-Cases
+          path: e2e-web-tests/SignalFlare_Selenium_Web_Test_Cases.xlsx
 
   appium-mobile-tests:
     name: Appium Mobile E2E
@@ -40,6 +45,11 @@ jobs:
       - name: Run Appium Tests
         working-directory: ./e2e-mobile-tests
         run: npm test || true
+      - name: Upload Appium Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Appium-Mobile-Test-Cases
+          path: e2e-mobile-tests/SignalFlare_Appium_E2E_Test_Cases.xlsx
 
   load-testing:
     name: Load and Performance Test
@@ -54,6 +64,11 @@ jobs:
         run: npm install -g autocannon
       - name: Run Baseline Load Test
         run: autocannon -c 100 -d 60 https://signalflare-web.onrender.com/api/health || true
+      - name: Upload Load Test Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Load-Testing-Report
+          path: test-reports/SignalFlare_Load_Test_Report.xlsx
 
   security-audit:
     name: Comprehensive Security Audit
@@ -74,3 +89,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Security Excel Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Security-Audit-Report
+          path: test-reports/Security_Audit_Report_FINAL.xlsx
