@@ -1,0 +1,84 @@
+name: Comprehensive Security Scan
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 0 * * 0' # Weekly scan
+
+jobs:
+  security-audit:
+    name: Backend Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Backend Technology
+        id: detect
+        run: |
+          echo "Scanning repository for backend architecture..."
+          if [ -f "server/package.json" ]; then
+            echo "Detected: Node.js / Express backend"
+            echo "tech=nodejs" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Setup Node.js (Dependency Review)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+          
+      - name: NPM Audit (Dependency Check)
+        working-directory: ./server
+        run: npm audit --audit-level=critical
+        continue-on-error: true # Don't fail the build, just report
+        
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/nodejs
+            p/expressjs
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+          generateSarif: "1"
+          
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
+
+      - name: Run Gitleaks (Hardcoded Secrets)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Generate Summary Report
+        if: always()
+        run: |
+          echo "## 🛡️ Security Scan Completed" >> $GITHUB_STEP_SUMMARY
+          echo "All SAST, Secret Scanning, and Dependency checks have run." >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Security Reports as Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: |
+            results.sarif
+          retention-days: 14
